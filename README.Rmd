@@ -1,0 +1,130 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "README-",
+  message = FALSE,
+  width = 120,
+  warning = FALSE
+)
+```
+
+The Panama Papers in R
+--------------------------
+
+This provides the datasets from the ICIJ Offshore Leaks Database from the Panama Papers. This dataset was constructed by the International Consortium of Investigative Journalists and available [here](https://offshoreleaks.icij.org/pages/database) under the [Creative Commons Attribution-ShareAlike](http://creativecommons.org/licenses/by-sa/3.0/) license. Besides that data, this package is available under GPL-3.
+
+Future versions of this package may soon include other data from the Panama Papers besides the offshore leaks dataset.
+
+### Installation
+
+Install using [devtools](https://github.com/hadley/devtools):
+
+```
+devtools::install_github("dgrtwo/rpanama")
+```
+
+### Offshore Leaks
+
+There are five main datasets that this package provides. First is information on the Entities, Intermediaries, Officers, and Addresses from the offshore leaks dataset (see [here](https://offshoreleaks.icij.org/pages/about#terms_definition) for the definitions of each):
+
+```{r}
+library(rpanama)
+library(dplyr)
+
+Entities
+Intermediaries
+Officers
+Addresses
+```
+
+These each make up nodes in a network. The `all_edges` dataset contains connections between these, including which entities have which offshore accounts.
+
+```{r}
+all_edges
+
+all_edges %>%
+  count(rel_type, sort = TRUE)
+```
+
+Each of the five above datasets comes directly from the CSVs released by the ICIJ [here](https://offshoreleaks.icij.org/pages/database).
+
+### Example
+
+We could find which countries have the most offshore entities (note that there are multiple countries split by `;`):
+
+```{r}
+library(tidyr)
+library(stringr)
+
+most_common_countries <- Entities %>%
+  select(node_id, countries) %>%
+  unnest(country = str_split(countries, ";")) %>%
+  count(country, sort = TRUE)
+
+most_common_countries
+```
+
+We may also find inter-country intermediary relationships were most common. We could do this by joining the `Intermediaries` data with the `all_edges` data and then the `Entities` data:
+
+```{r}
+entity_countries <- Entities %>%
+  unnest(entity_country = str_split(countries, ";"),
+         entity_code = str_split(country_codes, ";")) %>%
+  select(node_id, entity_country, entity_code)
+
+connections <- Intermediaries %>%
+  unnest(intermediary_country = str_split(countries, ";"),
+         intermediary_code = str_split(country_codes, ";")) %>%
+  inner_join(all_edges, by = c(node_id = "node_1")) %>%
+  inner_join(entity_countries, by = c(node_2 = "node_id")) %>%
+  filter(rel_type == "intermediary of",
+         intermediary_country != entity_country) %>%
+  count(intermediary_country, entity_country, intermediary_code, entity_code) %>%
+  ungroup() %>%
+  arrange(desc(n))
+
+connections
+```
+
+We could even put this on a map:
+
+```{r}
+library(rworldmap)
+library(geosphere)
+
+country_centers <- getMap()@data %>%
+  tbl_df() %>%
+  select(code = ISO_A3, longitude = LON, latitude = LAT)
+
+great_circles <- connections %>%
+  filter(n > 100) %>%
+  mutate(connection = row_number()) %>%
+  select(intermediary_code, entity_code, n, connection) %>%
+  gather(type, code, contains("code")) %>%
+  inner_join(country_centers, by = "code") %>%
+  group_by(connection, n) %>%
+  arrange(desc(type)) %>%
+  filter(n() == 2) %>%
+  do(as.data.frame(gcIntermediate(c(.$longitude[1], .$latitude[1]),
+                                  c(.$longitude[2], .$latitude[2]))))
+
+library(ggplot2)
+
+great_circles %>%
+  ggplot(aes(lon, lat, group = connection, alpha = n)) +
+  borders("world", alpha = .5) +
+  geom_path(arrow = arrow(length = unit(.1, "inches")), color = "red") +
+  theme_void() +
+  #scale_size_continuous(trans = "log", range = c(.1, 1)) +
+  coord_fixed(2, xlim = c(-180, 180), ylim = c(-55, 90)) +
+  scale_color_gradient2(low = "white", high = "red", trans = "log") +
+  theme(legend.position = "none") +
+  ggtitle("Most common offshore entity relationships")
+```

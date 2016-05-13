@@ -1,0 +1,23 @@
+Package: rpanama
+Type: Package
+Title: The Panama Papers Dataset
+Version: 0.1.0
+Date: 2016-05-13
+Authors@R: person("David", "Robinson", email = "admiral.david@gmail.com", role = c("aut", "cre"))
+Description: Shares some data from the Panama Papers, particularly from the
+    release of the Neo4j Offshore Leaks Database by the International
+    Consortium of Investigative Journalists.
+License: GPL-3
+LazyData: TRUE
+Maintainer: David Robinson <admiral.david@gmail.com>
+URL: https://github.com/dgrtwo/rpanama
+VignetteBuilder: knitr
+Suggests:
+    dplyr,
+    readr,
+    purrr,
+    rworldmap,
+    geosphere,
+    ggplot2,
+    tidyr
+RoxygenNote: 5.0.1
