@@ -1,3 +1,4 @@
+
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 ```{r, echo = FALSE}
@@ -5,6 +6,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   fig.path = "README-",
+  fig.retina = 2,
   message = FALSE,
   width = 120,
   warning = FALSE
@@ -91,7 +93,7 @@ connections
 
 We could even put this on a map:
 
-```{r}
+```{r, fig.width=11, fig.height=9}
 library(rworldmap)
 library(geosphere)
 
@@ -112,15 +114,23 @@ great_circles <- connections %>%
                                   c(.$longitude[2], .$latitude[2]))))
 
 library(ggplot2)
+library(ggthemes)
+library(ggalt)
 
-great_circles %>%
-  ggplot(aes(lon, lat, group = connection, alpha = n)) +
-  borders("world", alpha = .5) +
-  geom_path(arrow = arrow(length = unit(.1, "inches")), color = "red") +
-  theme_void() +
+world_map <- filter(map_data("world"), region != "Antarctica")
+
+ggplot() +
+  geom_map(data = world_map, map = world_map,
+           aes(x = long, y = lat, map_id = region),
+           color = "#b2b2b2", size = 0.15, fill = NA) +
+  geom_path(data=great_circles, color = "#a50026", 
+            aes(lon, lat, group = connection, alpha = n),
+            arrow = arrow(length = unit(0.1, "inches"))) +
+  scale_color_gradient2(low = "white", high = "#a50026", trans = "log") +
+  coord_proj() +
+  labs(title = "Most common offshore entity relationships") +
+  theme_map(base_family="Arial") +
   #scale_size_continuous(trans = "log", range = c(.1, 1)) +
-  coord_fixed(2, xlim = c(-180, 180), ylim = c(-55, 90)) +
-  scale_color_gradient2(low = "white", high = "red", trans = "log") +
-  theme(legend.position = "none") +
-  ggtitle("Most common offshore entity relationships")
+  theme(legend.position = "none", 
+        plot.title=element_text(hjust = 0.5, size = 14))
 ```

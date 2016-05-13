@@ -1,9 +1,7 @@
+
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-
-
-
 The Panama Papers in R
---------------------------
+----------------------
 
 This provides the datasets from the ICIJ Offshore Leaks Database from the Panama Papers. This dataset was constructed by the International Consortium of Investigative Journalists and available [here](https://offshoreleaks.icij.org/pages/database) under the [Creative Commons Attribution-ShareAlike](http://creativecommons.org/licenses/by-sa/3.0/) license. Besides that data, this package is available under GPL-3.
 
@@ -13,16 +11,13 @@ Future versions of this package may soon include other data from the Panama Pape
 
 Install using [devtools](https://github.com/hadley/devtools):
 
-```
-devtools::install_github("dgrtwo/rpanama")
-```
+    devtools::install_github("dgrtwo/rpanama")
 
 ### Offshore Leaks
 
 There are five main datasets that this package provides. First is information on the Entities, Intermediaries, Officers, and Addresses from the offshore leaks dataset (see [here](https://offshoreleaks.icij.org/pages/about#terms_definition) for the definitions of each):
 
-
-```r
+``` r
 library(rpanama)
 library(dplyr)
 
@@ -106,8 +101,7 @@ Addresses
 
 These each make up nodes in a network. The `all_edges` dataset contains connections between these, including which entities have which offshore accounts.
 
-
-```r
+``` r
 all_edges
 #> Source: local data frame [1,269,796 x 3]
 #> 
@@ -150,8 +144,7 @@ Each of the five above datasets comes directly from the CSVs released by the ICI
 
 We could find which countries have the most offshore entities (note that there are multiple countries split by `;`):
 
-
-```r
+``` r
 library(tidyr)
 library(stringr)
 
@@ -180,8 +173,7 @@ most_common_countries
 
 We may also find inter-country intermediary relationships were most common. We could do this by joining the `Intermediaries` data with the `all_edges` data and then the `Entities` data:
 
-
-```r
+``` r
 entity_countries <- Entities %>%
   unnest(entity_country = str_split(countries, ";"),
          entity_code = str_split(country_codes, ";")) %>%
@@ -219,8 +211,7 @@ connections
 
 We could even put this on a map:
 
-
-```r
+``` r
 library(rworldmap)
 library(geosphere)
 
@@ -241,17 +232,25 @@ great_circles <- connections %>%
                                   c(.$longitude[2], .$latitude[2]))))
 
 library(ggplot2)
+library(ggthemes)
+library(ggalt)
 
-great_circles %>%
-  ggplot(aes(lon, lat, group = connection, alpha = n)) +
-  borders("world", alpha = .5) +
-  geom_path(arrow = arrow(length = unit(.1, "inches")), color = "red") +
-  theme_void() +
+world_map <- filter(map_data("world"), region != "Antarctica")
+
+ggplot() +
+  geom_map(data = world_map, map = world_map,
+           aes(x = long, y = lat, map_id = region),
+           color = "#b2b2b2", size = 0.15, fill = NA) +
+  geom_path(data=great_circles, color = "#a50026", 
+            aes(lon, lat, group = connection, alpha = n),
+            arrow = arrow(length = unit(0.1, "inches"))) +
+  scale_color_gradient2(low = "white", high = "#a50026", trans = "log") +
+  coord_proj() +
+  labs(title = "Most common offshore entity relationships") +
+  theme_map(base_family="Arial") +
   #scale_size_continuous(trans = "log", range = c(.1, 1)) +
-  coord_fixed(2, xlim = c(-180, 180), ylim = c(-55, 90)) +
-  scale_color_gradient2(low = "white", high = "red", trans = "log") +
-  theme(legend.position = "none") +
-  ggtitle("Most common offshore entity relationships")
+  theme(legend.position = "none", 
+        plot.title=element_text(hjust = 0.5, size = 14))
 ```
 
-![plot of chunk unnamed-chunk-6](README-unnamed-chunk-6-1.png)
+<img src="README-unnamed-chunk-6-1.png" width="1056" />
